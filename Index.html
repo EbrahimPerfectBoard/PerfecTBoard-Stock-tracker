@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>PerfectBoard Stock Tracker</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Tabletop.js/1.5.4/tabletop.min.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    h1 { color: #2c3e50; }
+    table { border-collapse: collapse; width: 100%; margin-top: 20px; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+    th { background-color: #f4f4f4; }
+  </style>
+</head>
+<body>
+  <h1>PerfectBoard Stock Tracker</h1>
+  <div id="stock-table">Loading data...</div>
+
+  <script>
+    // Replace this with your published Google Sheet link
+    var publicSpreadsheetUrl = 'https://script.google.com/macros/s/AKfycbyQJAGfJxyYW4tYyTGOl_NM-OynUPK_vkfVXKrpIHifpEt3kuTw_nLnZr70OmhMLXd4fg/exec';
+
+    function init() {
+      Tabletop.init({
+        key: publicSpreadsheetUrl,
+        callback: showInfo,
+        simpleSheet: true
+      });
+    }
+
+    function showInfo(data) {
+      var html = "<table><tr>";
+      for (var key in data[0]) {
+        html += "<th>" + key + "</th>";
+      }
+      html += "</tr>";
+      data.forEach(function(row) {
+        html += "<tr>";
+        for (var key in row) {
+          html += "<td>" + row[key] + "</td>";
+        }
+        html += "</tr>";
+      });
+      html += "</table>";
+      document.getElementById("stock-table").innerHTML = html;
+    }
+
+    window.addEventListener('DOMContentLoaded', init);
+  </script>
+</body>
+</html>
