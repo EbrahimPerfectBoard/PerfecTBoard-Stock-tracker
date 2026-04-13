@@ -9,7 +9,7 @@
     input { padding: 8px; margin-top: 10px; width: 300px; }
     button { margin-left: 10px; padding: 8px; }
     .table-container { overflow-x: auto; }
-    table { border-collapse: collapse; width: 100%; margin-top: 20px; min-width: 1000px; }
+    table { border-collapse: collapse; width: 100%; margin-top: 20px; min-width: 1200px; }
     th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
     th { background-color: #f4f4f4; cursor: pointer; }
     .low-stock { background-color: #f8d7da; }   /* red */
@@ -45,7 +45,7 @@
 
     function renderTable(data) {
       let html = "<table><tr>";
-      const headers = ["ID","Description","Flute","GSM","Width (mm)","QtyReels","Weight per reel","MinStock","LastUpdated"];
+      const headers = ["ID","Description","Flute","GSM","Width","QtyReels","WeightPerReel","MinStock","LastUpdated"];
       headers.forEach(h => html += `<th onclick="sortTable('${h}')">${h}</th>`);
       html += "</tr>";
 
@@ -93,7 +93,7 @@
     });
 
     function exportCSV() {
-      let csv = "ID,Description,Flute,GSM,Width (mm),QtyReels,Weight per reel,MinStock,LastUpdated\n";
+      let csv = "ID,Description,Flute,GSM,Width,QtyReels,WeightPerReel,MinStock,LastUpdated\n";
       stockData.forEach(item => {
         csv += `${item.ID},${item.Description},${item.Flute},${item.GSM},${item.Width},${item.QtyReels},${item.WeightPerReel},${item.MinStock},${item.LastUpdated}\n`;
       });
