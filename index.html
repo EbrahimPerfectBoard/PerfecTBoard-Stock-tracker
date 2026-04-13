@@ -8,50 +8,66 @@
     h1 { color: #2c3e50; }
     input { padding: 8px; margin-top: 10px; width: 300px; }
     button { margin-left: 10px; padding: 8px; }
-    table { border-collapse: collapse; width: 100%; margin-top: 20px; }
+    .table-container { overflow-x: auto; }
+    table { border-collapse: collapse; width: 100%; margin-top: 20px; min-width: 1000px; }
     th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
     th { background-color: #f4f4f4; cursor: pointer; }
-    @media (max-width: 600px) {
-      table, th, td { font-size: 12px; }
-      input { width: 100%; }
-    }
-    canvas { margin-top: 20px; }
+    .low-stock { background-color: #f8d7da; }   /* red */
+    .at-stock { background-color: #fff3cd; }   /* yellow */
+    .good-stock { background-color: #d4edda; } /* green */
+    canvas { margin-top: 30px; }
   </style>
 </head>
 <body>
   <h1>PerfectBoard Stock Tracker</h1>
-  <input type="text" id="search" placeholder="Search stock name...">
+  <input type="text" id="search" placeholder="Search ID or Description...">
   <button onclick="exportCSV()">Export CSV</button>
-  <div id="stock-table">Loading data...</div>
-
-  <h2>Category Distribution</h2>
-  <canvas id="categoryChart" width="400" height="200"></canvas>
-
-  <h2>Stock Codes</h2>
-  <canvas id="stockChart" width="400" height="200"></canvas>
+  <div class="table-container" id="stock-table">Loading data...</div>
+  <h2>Total Reels per Description</h2>
+  <canvas id="reelChart" width="400" height="200"></canvas>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script>
     let stockData = [];
-    let sortDirection = { StockName: 1, Price: 1, Change: 1 };
+    let sortDirection = {};
 
     async function loadData() {
       try {
         const response = await fetch("https://script.google.com/macros/s/AKfycbxwR2ZUgtwsC6bO4O_8LMdOeKhfPPax98LgN82G-JXYI99L_th-8wWUNixrwoTn9W1mVg/exec");
         stockData = await response.json();
         renderTable(stockData);
-        renderCategoryChart(stockData);
-        renderStockChart(stockData);
+        renderChart(stockData);
       } catch (error) {
         document.getElementById("stock-table").innerHTML = "Error loading data.";
-        console.error("Fetch error:", error);
+        console.error(error);
       }
     }
 
     function renderTable(data) {
-      let html = "<table><tr><th onclick=\"sortTable('StockName')\">Stock Name</th><th onclick=\"sortTable('Price')\">Category</th><th onclick=\"sortTable('Change')\">Change</th></tr>";
+      let html = "<table><tr>";
+      const headers = ["ID","Description","Flute","GSM","Width (mm)","QtyReels","Weight per reel","MinStock","LastUpdated"];
+      headers.forEach(h => html += `<th onclick="sortTable('${h}')">${h}</th>`);
+      html += "</tr>";
+
       data.forEach(item => {
-        html += `<tr><td>${item.StockName}</td><td>${item.Price}</td><td>${item.Change}</td></tr>`;
+        const qty = parseFloat(item.QtyReels) || 0;
+        const min = parseFloat(item.MinStock) || 0;
+        let rowClass = "";
+        if (qty < min) rowClass = "low-stock";
+        else if (qty === min) rowClass = "at-stock";
+        else if (qty > min) rowClass = "good-stock";
+
+        html += `<tr class="${rowClass}">
+          <td>${item.ID}</td>
+          <td>${item.Description}</td>
+          <td>${item.Flute}</td>
+          <td>${item.GSM}</td>
+          <td>${item.Width}</td>
+          <td>${item.QtyReels}</td>
+          <td>${item.WeightPerReel}</td>
+          <td>${item.MinStock}</td>
+          <td>${item.LastUpdated}</td>
+        </tr>`;
       });
       html += "</table>";
       document.getElementById("stock-table").innerHTML = html;
@@ -59,84 +75,62 @@
 
     function sortTable(column) {
       stockData.sort((a, b) => {
-        return sortDirection[column] * a[column].toString().localeCompare(b[column].toString());
+        const dir = sortDirection[column] || 1;
+        sortDirection[column] = -dir;
+        return dir * a[column].toString().localeCompare(b[column].toString());
       });
-      sortDirection[column] *= -1;
       renderTable(stockData);
     }
 
     document.getElementById("search").addEventListener("input", function() {
-      const query = this.value.toLowerCase();
-      const filtered = stockData.filter(item => item.StockName.toLowerCase().includes(query));
+      const q = this.value.toLowerCase();
+      const filtered = stockData.filter(item =>
+        item.ID.toLowerCase().includes(q) ||
+        item.Description.toLowerCase().includes(q)
+      );
       renderTable(filtered);
-      renderCategoryChart(filtered);
-      renderStockChart(filtered);
+      renderChart(filtered);
     });
 
     function exportCSV() {
-      let csv = "Stock Name,Category,Change\n";
+      let csv = "ID,Description,Flute,GSM,Width (mm),QtyReels,Weight per reel,MinStock,LastUpdated\n";
       stockData.forEach(item => {
-        csv += `${item.StockName},${item.Price},${item.Change}\n`;
+        csv += `${item.ID},${item.Description},${item.Flute},${item.GSM},${item.Width},${item.QtyReels},${item.WeightPerReel},${item.MinStock},${item.LastUpdated}\n`;
       });
       const blob = new Blob([csv], { type: "text/csv" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = "stock_data.csv";
+      a.download = "PerfectBoard_Stock.csv";
       a.click();
     }
 
-    function renderCategoryChart(data) {
-      const ctx = document.getElementById("categoryChart").getContext("2d");
-
-      const categoryCounts = {};
+    function renderChart(data) {
+      const ctx = document.getElementById("reelChart").getContext("2d");
+      const totals = {};
       data.forEach(item => {
-        const category = item.Price || "Unknown";
-        categoryCounts[category] = (categoryCounts[category] || 0) + 1;
+        const desc = item.Description || "Unknown";
+        const qty = parseFloat(item.QtyReels) || 0;
+        totals[desc] = (totals[desc] || 0) + qty;
       });
 
       new Chart(ctx, {
         type: "bar",
         data: {
-          labels: Object.keys(categoryCounts),
+          labels: Object.keys(totals),
           datasets: [{
-            label: "Count of Stocks",
-            data: Object.values(categoryCounts),
+            label: "Total Reels",
+            data: Object.values(totals),
             backgroundColor: "rgba(54, 162, 235, 0.6)"
           }]
         },
         options: {
-          scales: {
-            y: { beginAtZero: true }
-          }
+          scales: { y: { beginAtZero: true } }
         }
       });
     }
 
-    function renderStockChart(data) {
-      const ctx = document.getElementById("stockChart").getContext("2d");
-
-      new Chart(ctx, {
-        type: "bar",
-        data: {
-          labels: data.map(item => item.StockName),
-          datasets: [{
-            label: "Stock Codes",
-            data: data.map(() => 1), // each stock gets a bar of height 1
-            backgroundColor: "rgba(255, 99, 132, 0.6)"
-          }]
-        },
-        options: {
-          scales: {
-            y: { beginAtZero: true }
-          }
-        }
-      });
-    }
-
-    // Auto-refresh every 5 minutes
     setInterval(loadData, 300000);
-
     window.addEventListener('DOMContentLoaded', loadData);
   </script>
 </body>
