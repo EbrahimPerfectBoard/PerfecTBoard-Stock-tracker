@@ -34,7 +34,7 @@
 
     async function loadData() {
       try {
-        const response = await fetch("https://script.google.com/macros/s/AKfycbzx-u-itLfjM9s7lELfwmKMnp0tOc89GDIy6-do5S9InG-OXwDZvRoDRzIB3OfNewMQNg/exec");
+        const response = await fetch("https://script.google.com/macros/s/AKfycbxwR2ZUgtwsC6bO4O_8LMdOeKhfPPax98LgN82G-JXYI99L_th-8wWUNixrwoTn9W1mVg/exec");
         stockData = await response.json();
         renderTable(stockData);
         renderChart(stockData);
