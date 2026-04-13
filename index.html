@@ -11,8 +11,6 @@
     table { border-collapse: collapse; width: 100%; margin-top: 20px; }
     th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
     th { background-color: #f4f4f4; cursor: pointer; }
-    tr.positive td { background-color: #eafbea; }
-    tr.negative td { background-color: #fdeaea; }
     @media (max-width: 600px) {
       table, th, td { font-size: 12px; }
       input { width: 100%; }
@@ -25,6 +23,11 @@
   <input type="text" id="search" placeholder="Search stock name...">
   <button onclick="exportCSV()">Export CSV</button>
   <div id="stock-table">Loading data...</div>
+
+  <h2>Category Distribution</h2>
+  <canvas id="categoryChart" width="400" height="200"></canvas>
+
+  <h2>Stock Codes</h2>
   <canvas id="stockChart" width="400" height="200"></canvas>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -37,7 +40,8 @@
         const response = await fetch("https://script.google.com/macros/s/AKfycbxwR2ZUgtwsC6bO4O_8LMdOeKhfPPax98LgN82G-JXYI99L_th-8wWUNixrwoTn9W1mVg/exec");
         stockData = await response.json();
         renderTable(stockData);
-        renderChart(stockData);
+        renderCategoryChart(stockData);
+        renderStockChart(stockData);
       } catch (error) {
         document.getElementById("stock-table").innerHTML = "Error loading data.";
         console.error("Fetch error:", error);
@@ -45,10 +49,9 @@
     }
 
     function renderTable(data) {
-      let html = "<table><tr><th onclick=\"sortTable('StockName')\">Stock Name</th><th onclick=\"sortTable('Price')\">Price</th><th onclick=\"sortTable('Change')\">Change</th></tr>";
+      let html = "<table><tr><th onclick=\"sortTable('StockName')\">Stock Name</th><th onclick=\"sortTable('Price')\">Category</th><th onclick=\"sortTable('Change')\">Change</th></tr>";
       data.forEach(item => {
-        const rowClass = parseFloat(item.Change) >= 0 ? "positive" : "negative";
-        html += `<tr class="${rowClass}"><td>${item.StockName}</td><td>${item.Price}</td><td>${item.Change}</td></tr>`;
+        html += `<tr><td>${item.StockName}</td><td>${item.Price}</td><td>${item.Change}</td></tr>`;
       });
       html += "</table>";
       document.getElementById("stock-table").innerHTML = html;
@@ -56,11 +59,7 @@
 
     function sortTable(column) {
       stockData.sort((a, b) => {
-        if (column === "Price" || column === "Change") {
-          return sortDirection[column] * (parseFloat(a[column]) - parseFloat(b[column]));
-        } else {
-          return sortDirection[column] * a[column].localeCompare(b[column]);
-        }
+        return sortDirection[column] * a[column].toString().localeCompare(b[column].toString());
       });
       sortDirection[column] *= -1;
       renderTable(stockData);
@@ -70,11 +69,12 @@
       const query = this.value.toLowerCase();
       const filtered = stockData.filter(item => item.StockName.toLowerCase().includes(query));
       renderTable(filtered);
-      renderChart(filtered);
+      renderCategoryChart(filtered);
+      renderStockChart(filtered);
     });
 
     function exportCSV() {
-      let csv = "Stock Name,Price,Change\n";
+      let csv = "Stock Name,Category,Change\n";
       stockData.forEach(item => {
         csv += `${item.StockName},${item.Price},${item.Change}\n`;
       });
@@ -86,17 +86,50 @@
       a.click();
     }
 
-    function renderChart(data) {
+    function renderCategoryChart(data) {
+      const ctx = document.getElementById("categoryChart").getContext("2d");
+
+      const categoryCounts = {};
+      data.forEach(item => {
+        const category = item.Price || "Unknown";
+        categoryCounts[category] = (categoryCounts[category] || 0) + 1;
+      });
+
+      new Chart(ctx, {
+        type: "bar",
+        data: {
+          labels: Object.keys(categoryCounts),
+          datasets: [{
+            label: "Count of Stocks",
+            data: Object.values(categoryCounts),
+            backgroundColor: "rgba(54, 162, 235, 0.6)"
+          }]
+        },
+        options: {
+          scales: {
+            y: { beginAtZero: true }
+          }
+        }
+      });
+    }
+
+    function renderStockChart(data) {
       const ctx = document.getElementById("stockChart").getContext("2d");
+
       new Chart(ctx, {
         type: "bar",
         data: {
           labels: data.map(item => item.StockName),
           datasets: [{
-            label: "Price",
-            data: data.map(item => parseFloat(item.Price)),
-            backgroundColor: "rgba(54, 162, 235, 0.6)"
+            label: "Stock Codes",
+            data: data.map(() => 1), // each stock gets a bar of height 1
+            backgroundColor: "rgba(255, 99, 132, 0.6)"
           }]
+        },
+        options: {
+          scales: {
+            y: { beginAtZero: true }
+          }
         }
       });
     }
